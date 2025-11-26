@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tasktracker/providers/auth.dart';
-import 'package:tasktracker/screens/home.dart';
-import 'package:tasktracker/screens/login.dart';
+import 'package:tasktracker/screens/home_screen.dart';
+import 'package:tasktracker/screens/login_screen.dart';
+import 'package:tasktracker/services/auth_service.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await dotenv.load(fileName: ".env");
+  
+  await dotenv.load(fileName: '.env');
 
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL'] ?? '',
@@ -24,19 +24,23 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateChangesProvider);
+    final authStateAsync = ref.watch(authStateProvider);
 
     return MaterialApp(
-      title: 'TaskTracker',
-      theme: ThemeData(
-        useMaterial3: true,
+      title: 'Task Tracker',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: authStateAsync.when(
+        data: (authState) {
+          if (authState.session != null) {
+            return const HomeScreen();
+          } else {
+            return const LoginScreen();
+          }
+        },
+        loading: () =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (e, st) => Scaffold(body: Center(child: Text('Error: $e'))),
       ),
-      home: switch (authState) {
-        AsyncData(:final value) => value.session != null ? const HomePage() : const LoginPage(),
-        AsyncError(:final error) => Scaffold(body: Center(child: Text('Erro: $error'))),
-        _ => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      },
     );
   }
-
 }
