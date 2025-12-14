@@ -6,14 +6,14 @@ import 'package:tasktracker/screens/home_screen.dart';
 import 'package:tasktracker/screens/login_screen.dart';
 import 'package:tasktracker/services/auth_service.dart';
 
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // await dotenv.load(fileName: '.env');
-
+  await dotenv.load(fileName: 'assets/.env');
   await Supabase.initialize(
-    url: dotenv.env['https://gvuemflbepmfvtqdydkz.supabase.co'] ?? '',
-    anonKey: dotenv.env['eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2dWVtZmxiZXBtZnZ0cWR5ZGt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3Mzk2NzUsImV4cCI6MjA3OTMxNTY3NX0.DO4GCx7Ju-dblEtGgdEXJtCCropcF3mM8elR_kB-T-c'] ?? '',
+    url: dotenv.env['SUPABASE_URL'] ?? '',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
 
   runApp(const ProviderScope(child: MyApp()));
