@@ -119,11 +119,35 @@ class ActivityTile extends ConsumerWidget {
           },
           title: Text(activity.name),
           subtitle: isRunning
-              ? _TimerTicker(startTime: activeTimer!.startTime)
-              : const Text('Ready to start'), // TODO: Show total duration
+            ? _TimerTicker(
+                startTime: activeTimer!.startTime,
+                isPaused: ref.read(timerServiceProvider).isPaused,
+                totalPausedSeconds: ref.read(timerServiceProvider).totalPausedSeconds,
+              )
+            : const Text('Ready to start'),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (isRunning) ...[
+                IconButton(
+                  icon: Icon(
+                    ref.read(timerServiceProvider).isPaused
+                        ? Icons.play_arrow
+                        : Icons.pause,
+                  ),
+                  color: Colors.orange,
+                  onPressed: () async {
+                    final timerService = ref.read(timerServiceProvider);
+                    if (timerService.isPaused) {
+                      await timerService.resumeTimer(activeTimer!.id);
+                    } else {
+                      await timerService.pauseTimer(activeTimer!.id);
+                    }
+                    // Force rebuild to update button state
+                    ref.invalidate(activeTimerProvider);
+                  },
+                ),
+              ],
               IconButton(
                 icon: Icon(isRunning ? Icons.stop : Icons.play_arrow),
                 color: isRunning ? Colors.red : Colors.green,
@@ -134,6 +158,7 @@ class ActivityTile extends ConsumerWidget {
                   } else {
                     await timerService.startTimer(activity.id);
                   }
+                  ref.invalidate(activeTimerProvider);
                 },
               ),
               PopupMenuButton(
@@ -244,35 +269,69 @@ class ActivityTile extends ConsumerWidget {
 
 class _TimerTicker extends StatefulWidget {
   final DateTime startTime;
-  const _TimerTicker({required this.startTime});
+  final bool isPaused;
+  final int totalPausedSeconds;
+
+  const _TimerTicker({
+    required this.startTime,
+    required this.isPaused,
+    required this.totalPausedSeconds,
+  });
 
   @override
   State<_TimerTicker> createState() => _TimerTickerState();
 }
 
 class _TimerTickerState extends State<_TimerTicker> {
-  late Timer _timer;
+  Timer? _timer;
   late Duration _duration;
+  bool _wasPaused = false;
 
   @override
   void initState() {
     super.initState();
-    _updateDuration();
-    _timer = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => _updateDuration(),
-    );
+    _duration = _calculateDuration();
+    if (!widget.isPaused) {
+      _startTimer();
+    }
+    _wasPaused = widget.isPaused;
   }
 
-  void _updateDuration() {
+  @override
+  void didUpdateWidget(covariant _TimerTicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If pause state changed, start/stop timer accordingly
+    if (_wasPaused != widget.isPaused) {
+      if (widget.isPaused) {
+        _timer?.cancel();
+      } else {
+        _startTimer();
+      }
+      _wasPaused = widget.isPaused;
+    }
+    // Always update duration on widget update
     setState(() {
-      _duration = DateTime.now().difference(widget.startTime);
+      _duration = _calculateDuration();
     });
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() {
+        _duration = _calculateDuration();
+      });
+    });
+  }
+
+  Duration _calculateDuration() {
+    return DateTime.now().difference(widget.startTime) -
+        Duration(seconds: widget.totalPausedSeconds);
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
