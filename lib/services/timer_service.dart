@@ -19,6 +19,13 @@ Stream<TimeEntry?> activeTimer(Ref ref) {
 class TimerService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  DateTime? _pausedAt;
+  int _totalPausedSeconds = 0;
+  bool _isPaused = false;
+
+  bool get isPaused => _isPaused;
+  int get totalPausedSeconds => _totalPausedSeconds;
+
   Stream<TimeEntry?> getActiveTimerStream() {
     return _supabase.from('time_entries').stream(primaryKey: ['id']).map((data) {
       final activeEntries = data
@@ -46,6 +53,23 @@ class TimerService {
     });
   }
 
+  Future<void> pauseTimer(String timeEntryId) async {
+    if (_isPaused) return;
+
+    _pausedAt = DateTime.now().toUtc();
+    _isPaused = true;
+  }
+
+  Future<void> resumeTimer(String timeEntryId) async {
+    if (!_isPaused || _pausedAt == null) return;
+
+    final now = DateTime.now().toUtc();
+    _totalPausedSeconds += now.difference(_pausedAt!).inSeconds;
+
+    _pausedAt = null;
+    _isPaused = false;
+  }
+
   Future<void> stopTimer(String timeEntryId) async {
     final endTime = DateTime.now().toUtc();
 
@@ -56,7 +80,7 @@ class TimerService {
         .single();
 
     final startTime = DateTime.parse(data['start_time']);
-    final duration = endTime.difference(startTime).inSeconds;
+    final duration = endTime.difference(startTime).inSeconds - _totalPausedSeconds;
 
     await _supabase
         .from('time_entries')
@@ -65,5 +89,9 @@ class TimerService {
           'duration_seconds': duration,
         })
         .eq('id', timeEntryId);
+
+    _pausedAt = null;
+    _totalPausedSeconds = 0;
+    _isPaused = false;
   }
 }
