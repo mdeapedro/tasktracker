@@ -6,11 +6,11 @@ import 'package:tasktracker/screens/home_screen.dart';
 import 'package:tasktracker/screens/login_screen.dart';
 import 'package:tasktracker/services/auth_service.dart';
 
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  await dotenv.load(fileName: '.env');
 
+  await dotenv.load(fileName: 'assets/.env');
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL'] ?? '',
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
